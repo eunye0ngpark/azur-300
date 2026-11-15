@@ -1,0 +1,35 @@
+:root{
+  --ink:oklch(24% .018 215);--paper:oklch(97% .012 92);--glass:oklch(97% .012 92 / .78);
+  --line:oklch(30% .025 215 / .18);--accent:oklch(47% .075 211);--shadow:0 12px 40px oklch(20% .025 215 / .13);
+  font-family:"Avenir Next","Helvetica Neue","Noto Sans SC","PingFang SC",sans-serif;color:var(--ink);
+}
+*{box-sizing:border-box}button{font:inherit}button:focus-visible,canvas:focus-visible{outline:2px solid oklch(64% .11 211);outline-offset:3px}
+#app{position:relative;width:100%;height:100%;min-height:100dvh;background:linear-gradient(#bcdde5 0 55%,#3d9db4 55% 70%,#d9cdb7 70%)}
+#scene{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:grab}#scene:active{cursor:grabbing}
+.hud{position:absolute;z-index:3;transition:opacity .22s ease,transform .22s ease,background-color .22s ease}
+.topbar{top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:28px 32px;pointer-events:none}
+.topbar button{pointer-events:auto}.brand{display:flex;align-items:baseline;gap:13px;border:0;background:none;padding:0;color:var(--ink);cursor:pointer;text-align:left}
+.brand strong{font-family:Georgia,"Times New Roman",serif;font-size:29px;font-weight:400;letter-spacing:.16em;line-height:1}.brand span{font-size:10px;letter-spacing:.21em;font-weight:600}
+.top-actions{display:flex;gap:8px}.top-actions button,.view-switch button,.plan-head button{
+  min-height:42px;padding:0 16px;border:1px solid var(--line);border-radius:999px;background:var(--glass);color:var(--ink);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);cursor:pointer;font-size:12px;letter-spacing:.05em;box-shadow:0 4px 20px oklch(20% .02 215 / .05)}
+.top-actions button:hover,.view-switch button:hover{background:var(--paper);transform:translateY(-1px)}button:active{transform:translateY(1px)!important}
+.place{left:32px;bottom:116px;max-width:370px;pointer-events:none;text-shadow:0 1px 14px oklch(100% 0 0 / .65)}
+.place span{font-size:10px;letter-spacing:.2em;font-weight:650}.place h1{font-family:Georgia,"Noto Serif SC",serif;font-weight:400;font-size:38px;letter-spacing:.04em;margin:9px 0 8px;line-height:1.12}.place p{font-size:12px;line-height:1.7;letter-spacing:.04em;margin:0;max-width:32em}
+.view-switch{right:32px;top:88px;display:flex;gap:6px}.view-switch button.active{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.room-nav{left:50%;bottom:28px;transform:translateX(-50%);display:flex;gap:4px;padding:6px;max-width:calc(100vw - 64px);border:1px solid var(--line);border-radius:999px;background:var(--glass);backdrop-filter:blur(20px);box-shadow:var(--shadow);overflow-x:auto;scrollbar-width:none}
+.room-nav::-webkit-scrollbar{display:none}.room-nav button{border:0;background:transparent;color:var(--ink);border-radius:999px;padding:0 15px;min-height:44px;white-space:nowrap;font-size:12px;cursor:pointer;transition:none}
+.room-nav button:hover{background:oklch(90% .025 211)}.room-nav button.active{background:var(--accent);color:var(--paper)}
+.hint{right:32px;bottom:111px;font-size:11px;letter-spacing:.06em;display:flex;align-items:center;gap:9px;pointer-events:none}.hint i{width:22px;height:1px;background:var(--ink);opacity:.4}
+.plan-panel{right:32px;top:146px;width:310px;padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--glass);backdrop-filter:blur(20px);box-shadow:var(--shadow)}
+.plan-panel[hidden]{display:none}.plan-head{display:flex;justify-content:space-between;align-items:center;font-size:10px;letter-spacing:.15em;margin-bottom:12px}.plan-head button{min-height:32px;padding:0 12px;box-shadow:none;background:transparent}
+#plan-map svg{display:block;width:100%;height:auto}#plan-map rect{cursor:pointer;transition:fill .18s,opacity .18s;stroke:oklch(30% .025 215 / .35);stroke-width:.06}#plan-map rect:hover{opacity:.72}#plan-map text{pointer-events:none;font-size:7px;fill:var(--ink);font-family:"Avenir Next","Noto Sans SC",sans-serif;letter-spacing:.03em}
+.plan-panel p{font-size:10px;line-height:1.6;margin:10px 0 0;opacity:.72}
+#toast{position:absolute;z-index:6;left:50%;top:24px;transform:translate(-50%,-12px);background:var(--ink);color:var(--paper);padding:11px 18px;border-radius:999px;font-size:12px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}#toast.show{opacity:1;transform:translate(-50%,0)}
+#loading{position:absolute;z-index:10;inset:0;display:grid;place-items:center;overflow:hidden;background:linear-gradient(180deg,#d5e8e9 0%,#b6d6dc 52%,#3c98ad 52.2%,#77b5c0 72%,#d9d0be 72.2%);transition:opacity .5s ease;pointer-events:none}
+#loading.done{opacity:0}.loading-horizon{position:absolute;left:0;right:0;top:52%;height:1px;background:oklch(98% .01 90 / .8)}
+.loading-copy{position:relative;width:min(320px,75vw);text-align:center}.loading-copy>span{font-family:Georgia,serif;font-size:34px;letter-spacing:.18em}.loading-copy p{font-size:12px;letter-spacing:.14em;margin:20px 0}.loading-track{height:1px;background:oklch(25% .02 215 / .18);overflow:hidden}.loading-track i{display:block;height:100%;width:4%;background:var(--ink);transition:width .2s}.loading-copy small{display:block;font-size:10px;letter-spacing:.08em;margin-top:12px}
+body.overview .place{text-shadow:none}body.clean .hud{opacity:0;pointer-events:none}body.clean .hud button{pointer-events:none}
+@media(max-width:900px){.topbar{padding:20px}.brand span{display:none}.top-actions button{padding:0 12px}.place{left:20px;bottom:112px}.place h1{font-size:30px}.hint{display:none}.view-switch{right:20px;top:76px}.room-nav{max-width:calc(100vw - 32px);bottom:20px}.plan-panel{right:20px;top:130px}.top-actions button[data-action="capture"]{display:none}}
+@media(max-width:560px){.topbar{padding:16px}.brand strong{font-size:25px}.top-actions button{font-size:11px;min-height:40px;padding:0 11px}.top-actions button[data-action="fullscreen"]{display:none}.view-switch{left:16px;right:auto;top:70px}.view-switch button{min-height:40px;padding:0 12px}.place{left:16px;bottom:98px;max-width:calc(100vw - 32px)}.place h1{font-size:28px;margin:6px 0}.place p{font-size:11px}.room-nav{max-width:calc(100vw - 24px);bottom:12px;border-radius:18px}.room-nav button{min-height:44px;padding:0 13px}.plan-panel{left:16px;right:16px;top:122px;width:auto}.plan-panel svg{max-height:45vh}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
