@@ -6,11 +6,11 @@ import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import {refineUpholstery} from '../src/upholstery.js';
 import {refineBedroomsAndPlants,hangRivieraPrint} from '../src/interior.js';
 import {createEnvironment} from '../src/environment.js';
+import {assetURL} from '../src/asset-url.js';
 
 export async function exportAdditions(){
-  // The export page lives under /scripts; runtime assets live at the viewer root.
-  THREE.DefaultLoadingManager.setURLModifier(url=>url.startsWith('./textures/')?url.replace('./','../'):url);
-  const model=(await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('../models/azur-300-v002.glb')).scene;
+  THREE.DefaultLoadingManager.setURLModifier(url=>url.startsWith('./textures/')?assetURL(url):url);
+  const model=(await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(assetURL('./models/azur-300-v002.glb'))).scene;
   refineUpholstery(model);
     refineBistro(model);refineBedroomsAndPlants(model);await hangRivieraPrint(model);
   const scene=new THREE.Scene();
