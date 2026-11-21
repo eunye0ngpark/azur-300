@@ -12,6 +12,6 @@
 | [Leather Red 02](https://polyhaven.com/a/leather_red_02) | Rob Tuytel | 0.60 × 0.60 m | 调成干邑色的皮革 |
 | [Travertine 001](https://ambientcg.com/view?id=Travertine001) | ambientCG | 约 1.2 × 1.2 m | 洞石、降低对比度的浅色石地面 |
 
-洞石为原作者制作的程序材质。室内材质依原设计重新调色。每张 WebP 的红、绿、蓝通道分别储存漫反射亮度变化、粗糙度变化和表面高低变化。贴图按世界坐标以米为单位投影，家具合批后仍保持纹理大小。胡桃木纹理在制作时转了 90°。圈绒用表面高低弱化了原面料的彩色格纹。线上版本在保持原分辨率的前提下使用质量 82 的有损 WebP 压缩，以减少下载时间。
+洞石为原作者制作的程序材质。室内材质依原设计重新调色。每张 WebP 的红、绿、蓝通道分别储存漫反射亮度变化、粗糙度变化和表面高低变化。贴图按世界坐标以米为单位投影，家具合批后仍保持纹理大小。胡桃木纹理在制作时转了 90°。圈绒用表面高低弱化了原面料的彩色格纹。为减少下载时间，线上版本将贴图限制在 512 像素以内，并使用质量 75 的有损 WebP 压缩。
 
 `scripts/prepare-surfaces.py` 可从上述来源重建贴图。安装 NumPy 与 Pillow 后，从项目根目录运行 `python3 scripts/prepare-surfaces.py --cache /tmp/azur-cc0-materials`。首次运行会联网下载原素材。
