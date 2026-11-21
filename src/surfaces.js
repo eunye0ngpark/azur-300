@@ -1,4 +1,13 @@
 import * as THREE from 'three';
+import oakUrl from './assets/textures/interior/oak_veneer_01.webp?inline';
+import walnutUrl from './assets/textures/interior/natural_walnut_veneer.webp?inline';
+import stoneUrl from './assets/textures/interior/Travertine001.webp?inline';
+import linenUrl from './assets/textures/interior/rough_linen.webp?inline';
+import woolUrl from './assets/textures/interior/wool_boucle.webp?inline';
+import leatherUrl from './assets/textures/interior/leather_red_02.webp?inline';
+import plasterUrl from './assets/textures/interior/white_plaster_02.webp?inline';
+
+const sampleUrls = { oak: oakUrl, walnut: walnutUrl, stone: stoneUrl, linen: linenUrl, wool: woolUrl, leather: leatherUrl, plaster: plasterUrl };
 
 // Width and height are the physical source sample dimensions in metres.
 const samples = {
@@ -134,7 +143,7 @@ export async function loadInteriorSurfaces(renderer) {
   const textures = new Map();
   await Promise.all(Object.entries(samples).map(async ([key, [id]]) => {
     try {
-      const texture = await loader.loadAsync(`./textures/interior/${id}.webp`);
+      const texture = await loader.loadAsync(sampleUrls[key]);
       texture.colorSpace = THREE.NoColorSpace;
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
       texture.anisotropy = maxAnisotropy;

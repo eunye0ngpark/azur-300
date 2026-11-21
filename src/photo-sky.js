@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
+import daylightPanorama from './assets/textures/sky/pizzo_pernice_puresky_2k.hdr?inline';
 
 // The sun disc was measured in the source radiance map. The yaw keeps the
 // horizon level and sets the sun over the apartment's southwest frontage.
@@ -16,8 +17,8 @@ export function loadPhotoSky(mesh) {
     mesh.material = isSunset || !daylightMaterial ? sunsetMaterial : daylightMaterial;
   }
 
-  // HDRLoader uses the default loading manager, including its offline URL map.
-  const ready = new HDRLoader().loadAsync('./textures/sky/pizzo_pernice_puresky_2k.hdr').then(texture => {
+  // Inline the panorama to avoid a separate slow network request.
+  const ready = new HDRLoader().loadAsync(daylightPanorama).then(texture => {
     texture.wrapS = THREE.RepeatWrapping;
     daylightMaterial = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthTest: false, depthWrite: false,

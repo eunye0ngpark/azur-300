@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import bordigheraUrl from './assets/bordighera.jpg?inline';
 
 const beds = [
   {x:-7.95, width:2.20, accent:'VelvetTeal', phase:1.2},
@@ -164,7 +165,7 @@ export function refineBedroomsAndPlants(model) {
 }
 
 export async function hangRivieraPrint(model) {
-  const texture=await new THREE.TextureLoader().loadAsync('./textures/bordighera.jpg');
+  const texture=await new THREE.TextureLoader().loadAsync(bordigheraUrl);
   texture.colorSpace=THREE.SRGBColorSpace;
   const living=model.getObjectByName('Living');
   if(!living)return;
