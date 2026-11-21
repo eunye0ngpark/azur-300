@@ -1,0 +1,6 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>AZUR model export</title>
+<button id="export">Export Blender geometry</button>
+<script type="module">
+import{exportAdditions}from'./native-export.js';
+document.querySelector('button').onclick=async()=>{const geometry=await exportAdditions();const a=document.createElement('a');a.download='azur-additions.glb';a.href=URL.createObjectURL(new Blob([geometry]));a.click();};
+</script></html>
