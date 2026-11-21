@@ -4,7 +4,7 @@
 
 原图为 2048 × 1024 像素，SHA-256 为 `55c199a301943e3c0f8222e7be70b6356408f747ac3442206c7e6d2fe5aa02a5`。
 
-为缩短网页加载时间，线上运行文件使用同一来源的 1024 × 512 HDR，文件名保持不变以兼容现有代码。[1K HDR 运行素材](https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/pizzo_pernice_puresky_1k.hdr)。
+为缩短网页加载时间，线上运行文件使用同一来源色调映射 JPG 缩至 1024 × 512，并内联到 JavaScript。[色调映射原图](https://dl.polyhaven.org/file/ph-assets/HDRIs/extra/Tonemapped%20JPG/pizzo_pernice_puresky.jpg)。直接日光与阴影仍由独立方向光提供。
 
 ## 太阳与阴影对齐
 
