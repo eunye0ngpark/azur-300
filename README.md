@@ -62,7 +62,7 @@ names = [
 result = bytearray()
 for name in names:
     data = Path(name).read_bytes()
-    if name != names[0] and data.endswith(b'\n'):
+    if name not in (names[0], names[-1]) and data.endswith(b'\n'):
         data = data[:-1]
     result.extend(data)
 Path('尼斯海景房_离线漫游.html').write_bytes(result)
