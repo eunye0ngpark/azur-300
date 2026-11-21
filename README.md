@@ -43,3 +43,12 @@ blender -b 尼斯海景房_精修.blend --python-exit-code 1 -P scripts/render-n
 ```
 
 原始建模脚本为 src/model.py，源文件 azur-300-v002.blend 中保有原项目的落地灯。材质与参考资料见 CREDITS.md。
+
+## GitHub 分卷还原
+
+为兼容网页上传限制，精修工程和离线漫游页面在 GitHub 中以分卷保存。下载后在仓库根目录运行：
+
+```sh
+cat 尼斯海景房_精修.blend.part-* > 尼斯海景房_精修.blend
+cat 尼斯海景房_离线漫游.html.part-* > 尼斯海景房_离线漫游.html
+```
