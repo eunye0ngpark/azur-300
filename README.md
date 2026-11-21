@@ -32,6 +32,10 @@ node scripts/offline.mjs
 
 构建后的文件在 dist 下。Three.js 从 public/models 读取基础模型，再应用 src 下的精修几何、材质、天空与海岸。
 
+## 在线加载
+
+线上版本保留原始模型、贴图和 HDR 画质。GitHub Pages 提供应用页面，公开大文件通过 jsDelivr CDN 分发，以减少跨境直连 GitHub Pages 的加载时间。单文件离线版仍使用内嵌资源，不依赖 CDN。
+
 ## 更新 Blender 模型
 
 1. 启动网页开发服务，在浏览器访问同一站点的 /scripts/native-export.html，点击按钮导出 azur-additions.glb。
