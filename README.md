@@ -50,5 +50,21 @@ blender -b 尼斯海景房_精修.blend --python-exit-code 1 -P scripts/render-n
 
 ```sh
 cat 尼斯海景房_精修.blend.part-* > 尼斯海景房_精修.blend
-cat 尼斯海景房_离线漫游.html.part-* > 尼斯海景房_离线漫游.html
+python3 - <<'PY'
+from pathlib import Path
+names = [
+    '尼斯海景房_离线漫游.html.part-aa',
+    '尼斯海景房_离线漫游.html.part-ab-aa',
+    '尼斯海景房_离线漫游.html.part-ab-ab',
+    '尼斯海景房_离线漫游.html.part-ac',
+    '尼斯海景房_离线漫游.html.part-ad',
+]
+result = bytearray()
+for name in names:
+    data = Path(name).read_bytes()
+    if name != names[0] and data.endswith(b'\n'):
+        data = data[:-1]
+    result.extend(data)
+Path('尼斯海景房_离线漫游.html').write_bytes(result)
+PY
 ```
