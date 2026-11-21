@@ -9,6 +9,7 @@ import { loadInteriorSurfaces } from './surfaces.js';
 import { refineUpholstery } from './upholstery.js';
 import { refineBedroomsAndPlants, hangRivieraPrint } from './interior.js';
 import { installPackedAssets } from './assets.js';
+import { assetURL } from './asset-url.js';
 installPackedAssets(THREE.DefaultLoadingManager);
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -296,7 +297,7 @@ async function init(){
     setProgress(8,'正在读取整层模型');
     const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
     const surfacesReady=loadInteriorSurfaces(renderer);
-    const gltf=await loader.loadAsync('./models/azur-300-v002.glb',event=>{
+    const gltf=await loader.loadAsync(assetURL('./models/azur-300-v002.glb'),event=>{
       const p=event.total?event.loaded/event.total:Math.min(.85,event.loaded/1100000);setProgress(10+p*58,'正在布置家具与落地窗');
     });
     model=gltf.scene;model.name='AZUR_300_residence';model.position.y=45;scene.add(model);

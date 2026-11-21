@@ -1,13 +1,10 @@
 import * as THREE from 'three';
-import oakUrl from './assets/textures/interior/oak_veneer_01.webp?inline';
-import walnutUrl from './assets/textures/interior/natural_walnut_veneer.webp?inline';
-import stoneUrl from './assets/textures/interior/Travertine001.webp?inline';
-import linenUrl from './assets/textures/interior/rough_linen.webp?inline';
-import woolUrl from './assets/textures/interior/wool_boucle.webp?inline';
-import leatherUrl from './assets/textures/interior/leather_red_02.webp?inline';
-import plasterUrl from './assets/textures/interior/white_plaster_02.webp?inline';
+import { assetURL } from './asset-url.js';
 
-const sampleUrls = { oak: oakUrl, walnut: walnutUrl, stone: stoneUrl, linen: linenUrl, wool: woolUrl, leather: leatherUrl, plaster: plasterUrl };
+const sampleUrls = Object.fromEntries(['oak', 'walnut', 'stone', 'linen', 'wool', 'leather', 'plaster'].map(key => {
+  const ids = { oak: 'oak_veneer_01', walnut: 'natural_walnut_veneer', stone: 'Travertine001', linen: 'rough_linen', wool: 'wool_boucle', leather: 'leather_red_02', plaster: 'white_plaster_02' };
+  return [key, assetURL(`./textures/interior/${ids[key]}.webp`)];
+}));
 
 // Width and height are the physical source sample dimensions in metres.
 const samples = {
