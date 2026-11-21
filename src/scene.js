@@ -1,9 +1,15 @@
+import {refineBistro} from './bistro.js';
 import './style.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { makeDaylight } from './daylight.js';
+import { loadInteriorSurfaces } from './surfaces.js';
+import { refineUpholstery } from './upholstery.js';
+import { refineBedroomsAndPlants, hangRivieraPrint } from './interior.js';
+import { installPackedAssets } from './assets.js';
+installPackedAssets(THREE.DefaultLoadingManager);
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -15,7 +21,7 @@ import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { createEnvironment } from './environment.js';
 import { NAN_SCRUB, FINISH } from './shaders/post.js';
 import { staticBatch } from './batching.js';
-import { createQualityGovernor, initialTier } from './quality.js';
+import { createQualityGovernor } from './quality.js';
 
 const canvas=document.getElementById('scene');
 const params=new URLSearchParams(location.search);
@@ -23,7 +29,7 @@ const CAPTURE=params.has('capture');
 if(params.has('promo'))document.body.classList.add('clean');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const renderer=new THREE.WebGLRenderer({canvas,antialias:false,powerPreference:'high-performance',preserveDrawingBuffer:CAPTURE||params.has('debug')});
-renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.AgXToneMapping;
@@ -34,69 +40,65 @@ renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
 renderer.info.autoReset=false;
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0xb9d8df);
-scene.fog=new THREE.Fog(0xa9cdd2,180,1750);
-const camera=new THREE.PerspectiveCamera(66,innerWidth/innerHeight,.045,4000);
+scene.fog=new THREE.Fog(0xa9cdd2,320,3200);
+const camera=new THREE.PerspectiveCamera(53,innerWidth/innerHeight,.045,4000);
 camera.rotation.order='YXZ';
 const environment=createEnvironment(scene);
 
-// Neutral interior reflections keep bronze, glass and stone readable without a remote HDRI.
-const pmrem=new THREE.PMREMGenerator(renderer);
-const envTarget=pmrem.fromScene(new RoomEnvironment(),.04);
-scene.environment=envTarget.texture;
-scene.environmentIntensity=.30;
-pmrem.dispose();
-
-const hemi=new THREE.HemisphereLight(0xd8eff4,0xa68b70,.48);scene.add(hemi);
-const ambient=new THREE.AmbientLight(0xfff5e5,.055);scene.add(ambient);
-const sun=new THREE.DirectionalLight(0xffe7c2,3.4);
-sun.position.set(-65,125,105);sun.target.position.set(0,45,-5);sun.castShadow=true;
-sun.shadow.mapSize.set(4096,4096);sun.shadow.camera.left=-32;sun.shadow.camera.right=32;sun.shadow.camera.top=30;sun.shadow.camera.bottom=-30;
-sun.shadow.camera.near=30;sun.shadow.camera.far=230;sun.shadow.normalBias=.012;sun.shadow.bias=-.00006;
-scene.add(sun,sun.target);
-const fill=new THREE.DirectionalLight(0xb8dce8,.25);fill.position.set(45,75,-70);scene.add(fill);
+const daylight=makeDaylight(scene,renderer,environment);
 RectAreaLightUniformsLib.init();
 const windowLights=[];
 function area(x,y,z,tx,ty,tz,w,h,intensity){
-  const light=new THREE.RectAreaLight(0xe9f7f4,intensity*.62,w,h);light.position.set(x,y,z);light.lookAt(tx,ty,tz);scene.add(light);windowLights.push(light);return light;
+  const light=new THREE.RectAreaLight(0xe9f7f4,intensity*.78,w,h);light.position.set(x,y,z);light.lookAt(tx,ty,tz);scene.add(light);windowLights.push(light);return light;
 }
 for(const x of [-7,2.7,9.5])area(x,47.0,.35,x,46.1,-5,7.2,2.9,2.15);
 for(const x of [-8.5,-1.5,4.5,10])area(x,47.0,-11.65,x,46.1,-8,5.2,2.9,1.75);
 area(-12.1,46.9,-3,-7,46.0,-3,5,2.8,1.55);
 
-const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType,samples:CAPTURE?0:2});
+const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType,samples:Math.min(4,renderer.capabilities.maxSamples)});
 const composer=new EffectComposer(renderer,rt);
 composer.addPass(new RenderPass(scene,camera));
-const gtao=new GTAOPass(scene,camera,innerWidth,innerHeight);
-gtao.updateGtaoMaterial({radius:.38,distanceExponent:1.25,thickness:1.15,distanceFallOff:.75,scale:1.18,samples:CAPTURE?8:16});
+// The AO pass draws a replacement depth material. Glass panes and the far
+// water horizon would otherwise leave opaque silhouettes in a transparent view.
+const aoExcluded=[environment.group];
+class InteriorOcclusionPass extends GTAOPass {
+  render(...args) {
+    const visible=aoExcluded.filter(o=>o.visible);
+    for(const object of visible)object.visible=false;
+    try { super.render(...args); }
+    finally { for(const object of visible)object.visible=true; }
+  }
+}
+const gtao=new InteriorOcclusionPass(scene,camera,innerWidth,innerHeight);
+gtao.updateGtaoMaterial({radius:.38,distanceExponent:1.25,thickness:1.15,distanceFallOff:.75,scale:1.18,samples:24});
 gtao.updatePdMaterial({lumaPhi:8,depthPhi:2.5,normalPhi:3,radius:5});
-gtao.blendIntensity=.82;composer.addPass(gtao);
+gtao.blendIntensity=.67;composer.addPass(gtao);
 composer.addPass(new ShaderPass(NAN_SCRUB));
 const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth/2,innerHeight/2),.09,.16,1.45);composer.addPass(bloom);
 composer.addPass(new OutputPass());
 // Native-resolution FXAA keeps capture edges clean without multisampling every
 // post-processing target, which is especially costly in software WebGL.
 const fxaa=new ShaderPass(FXAAShader);if(CAPTURE)composer.addPass(fxaa);
-const finish=new ShaderPass(FINISH);finish.uniforms.uGrain.value=CAPTURE?0:.006;finish.uniforms.uVignette.value=.19;finish.uniforms.uAberration.value=0;finish.uniforms.uFade.value=0;composer.addPass(finish);
+const finish=new ShaderPass(FINISH);finish.uniforms.uGrain.value=CAPTURE?0:.002;finish.uniforms.uVignette.value=.055;finish.uniforms.uAberration.value=0;finish.uniforms.uFade.value=0;composer.addPass(finish);
 
 const orbit=new OrbitControls(camera,canvas);orbit.enabled=false;orbit.enableDamping=true;orbit.dampingFactor=.065;
-orbit.minDistance=20;orbit.maxDistance=300;orbit.maxPolarAngle=Math.PI*.47;orbit.minPolarAngle=.20;orbit.target.set(0,45,-4);orbit.addEventListener('change',()=>requestDraw());
+orbit.minDistance=10;orbit.maxDistance=300;orbit.maxPolarAngle=Math.PI*.47;orbit.minPolarAngle=.20;orbit.target.set(0,45,-4);orbit.addEventListener('change',()=>requestDraw());
 
 const rooms=[
-  {id:'living',name:'海景客厅',short:'客厅',area:'84㎡',desc:'开阔会客空间 · 弧形沙发与海景咖啡露台相连',pos:[-10.7,46.64,-5.45],target:[-5.4,46.12,2.2],bounds:[0,0,12,7]},
+  {id:'living',name:'海景客厅',short:'客厅',area:'84㎡',desc:'开阔会客空间 · 弧形沙发与海景咖啡露台相连',pos:[-11.58,46.56,-.76],target:[-5.22,45.99,-3.70],fov:55,bounds:[0,0,12,7]},
   {id:'wine',name:'酒廊与餐厅',short:'酒廊餐厅',area:'49㎡',desc:'八人餐桌 · 独立藏酒墙与双人品酒 lounge',pos:[.1,46.64,-5.5],target:[3.2,46.2,-1.4],bounds:[12,0,7,7]},
   {id:'kitchen',name:'开放厨房',short:'厨房',area:'42㎡',desc:'3.8 米石材中岛 · 全套嵌入式厨电与海景早餐位',pos:[7.25,46.64,-5.45],target:[9.6,46.25,-2.5],bounds:[19,0,6,7]},
   {id:'master',name:'主卧套房',short:'主卧',area:'40㎡',desc:'睡眠区与私密起居 · 独立更衣 · 双人盥洗及步入式淋浴',pos:[-5.35,46.62,-7.75],target:[-7.95,46.25,-10.15],bounds:[0,7,8,5]},
   {id:'bedroom2',name:'次卧室',short:'次卧',area:'30㎡',desc:'安静私密的套房 · 低饱和陶土色点缀',pos:[-.05,46.62,-7.85],target:[-2.0,46.25,-10.15],bounds:[8,7,6,5]},
   {id:'billiards',name:'台球室',short:'台球室',area:'30㎡',desc:'标准尺寸球台 · 四周保留完整运杆距离',pos:[4.55,46.68,-7.75],target:[4.5,45.95,-9.45],bounds:[14,7,6,5]},
   {id:'gaming',name:'电竞房',short:'电竞房',area:'25㎡',desc:'双工位设备 · 明亮空间中的石墨色与克制 RGB',pos:[10.0,46.64,-7.65],target:[10.0,46.20,-10.6],bounds:[20,7,5,5]},
-  {id:'terrace',name:'海景咖啡露台',short:'咖啡露台',area:'82.5㎡',desc:'四人咖啡座与日光躺椅 · 无遮挡望向蔚蓝海岸',pos:[-9.3,47.65,-.35],target:[1.0,20.0,34],bounds:[0,-3.3,25,3.3]},
+  {id:'terrace',name:'海景咖啡露台',short:'咖啡露台',area:'82.5㎡',desc:'四人咖啡座与日光躺椅 · 无遮挡望向蔚蓝海岸',pos:[-9.30,46.60,.70],target:[-.5,46.05,25],fov:55,bounds:[0,-3.3,25,3.3]},
 ];
-const overview={id:'overview',name:'整层全景',short:'整层鸟瞰',desc:'300㎡ 室内面积 · 20 层建筑第 17 层 · 3.4 米层高'};
+const overview={id:'overview',name:'17 层外观',short:'楼体外观',desc:'300㎡ 室内面积 · 20 层建筑第 17 层 · 3.4 米层高'};
 let currentRoom=rooms[0],mode='panorama',golden=0,model=null,ready=false;
 let yaw=0,pitch=0,dragging=false,lastX=0,lastY=0,paused=true,simT=0,toastTimer=0,dirty=true,cameraTween=null;
 const clock=new THREE.Clock();
-const ceilingMeshes=[];
-const cutawayMeshes=[];let cutawayAmount=0;
+
 
 function requestDraw(){dirty=true;}
 function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),1800);}
@@ -111,47 +113,12 @@ function updatePlace(){
   document.querySelectorAll('#room-nav button').forEach(b=>b.classList.toggle('active',b.dataset.room===(mode==='overview'?'overview':currentRoom.id)));
   document.querySelectorAll('#plan-map rect').forEach(r=>r.setAttribute('fill',r.dataset.room===currentRoom.id&&mode!=='overview'?'#4c8b9b':'#e8e5dc'));
 }
-function prepareCutawayMesh(mesh){
-  if(mesh.userData.cutawayReady)return;mesh.userData.cutawayReady=true;
-  const originals=Array.isArray(mesh.material)?mesh.material:[mesh.material];
-  const copies=originals.map(original=>{
-    const material=original.clone();material.onBeforeCompile=original.onBeforeCompile;material.customProgramCacheKey=original.customProgramCacheKey;
-    return{material,opacity:original.opacity,transparent:original.transparent,depthWrite:original.depthWrite};
-  });
-  mesh.material=Array.isArray(mesh.material)?copies.map(r=>r.material):copies[0].material;
-  cutawayMeshes.push({mesh,materials:copies});
-}
-function prepareCutaway(){
-  const upper=environment.group.getObjectByName('Residential_tower_above_18_20');
-  for(const mesh of ceilingMeshes)prepareCutawayMesh(mesh);
-  upper?.traverse(o=>{if(o.isMesh)prepareCutawayMesh(o);});
-}
-function applyCutaway(value){
-  const amount=THREE.MathUtils.clamp(value,0,1);if(Math.abs(amount-cutawayAmount)<.0005)return;cutawayAmount=amount;
-  for(const {mesh,materials} of cutawayMeshes){
-    mesh.visible=amount<.999;
-    for(const r of materials){
-      const fading=amount>.001;
-      r.material.opacity=r.opacity*(1-amount);
-      if(r.material.transparent!==(fading||r.transparent)||r.material.depthWrite!==(fading?false:r.depthWrite)){
-        r.material.transparent=fading||r.transparent;r.material.depthWrite=fading?false:r.depthWrite;r.material.needsUpdate=true;
-      }
-    }
-  }
-}
-function updateTransitionCutaway(){
-  const tween=cameraTween;if(!tween)return;
-  // Height is monotonic on both the exit and return legs. Unlike an event trigger,
-  // this remains correct after a slow frame or a deterministic audit seek.
-  tween.cutaway=THREE.MathUtils.smoothstep(camera.position.y,48.85,50.35);
-  applyCutaway(tween.cutaway);
-}
-const overviewOffset=new THREE.Vector3(44,32,-48);
+const overviewOffset=new THREE.Vector3(28,12,38);
 const doorX={master:-5.3,bedroom2:.75,billiards:6.85,gaming:8.55};
 const privateRooms=new Set(Object.keys(doorX));
 function overviewPose(){
-  const target=new THREE.Vector3(0,25,30);
-  const fit=Math.max(1,1.5/camera.aspect)*(camera.aspect>=1?1.82:1.28);
+  const target=new THREE.Vector3(0,45.05,-4.55);
+  const fit=Math.max(1,1.55/camera.aspect);
   return{target,position:target.clone().addScaledVector(overviewOffset,fit)};
 }
 function positionOverview(){
@@ -168,16 +135,16 @@ function syncModeButtons(){
   document.querySelectorAll('[data-mode]').forEach(b=>{const active=b.dataset.mode===mode;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
 }
 function applyRoomPose(room){
-  camera.position.fromArray(room.pos);camera.fov=66;camera.updateProjectionMatrix();
+  camera.position.fromArray(room.pos);camera.fov=room.fov??54;camera.updateProjectionMatrix();
   camera.lookAt(new THREE.Vector3(...room.target));syncAngles();
 }
 function completeTween(){
   const tween=cameraTween;if(!tween)return;cameraTween=null;finish.uniforms.uFade.value=0;
   mode=tween.mode;
   if(mode==='overview'){
-    camera.fov=48;camera.updateProjectionMatrix();positionOverview();applyCutaway(1);orbit.enabled=true;
+    camera.fov=48;camera.updateProjectionMatrix();positionOverview();orbit.enabled=true;
   }else{
-    currentRoom=tween.room;applyRoomPose(currentRoom);applyCutaway(0);orbit.enabled=false;
+    currentRoom=tween.room;applyRoomPose(currentRoom);orbit.enabled=false;
   }
   environment.group.getObjectByName('Residential_tower_below').visible=true;
   document.body.classList.toggle('overview',mode==='overview');syncModeButtons();updatePlace();requestDraw();
@@ -186,7 +153,7 @@ function roomRoute(room,fromMode,fromRoom){
   const points=[camera.position.clone()],destination=new THREE.Vector3(...room.pos),h=46.64;
   const add=(x,y,z)=>points.push(new THREE.Vector3(x,y,z));
   if(fromMode==='overview'){
-    add(-5.3,50.6,2.0);add(-5.3,h,1.10);
+    add(-5.3,50.6,5.0);add(-5.3,h,5.0);add(-5.3,h,1.10);
     if(room.id!=='terrace')add(-5.3,h,-1.0);
   }else{
     if(privateRooms.has(fromRoom.id)){
@@ -196,7 +163,7 @@ function roomRoute(room,fromMode,fromRoom){
   if(privateRooms.has(room.id)){
     const x=doorX[room.id];add(x,h,-5.95);add(x,h,-6.95);add(x,h,-7.70);
   }else if(room.id==='terrace'&&fromMode!=='overview'&&fromRoom.id!=='terrace'){
-    add(-5.3,h,1.10);add(-5.3,h,-1.0);
+    add(-5.3,h,-1.0);add(-5.3,h,1.10);
   }else if(room.id!=='terrace'&&fromMode!=='overview'&&fromRoom.id!==room.id){
     add((camera.position.x+destination.x)*.5,h+.10,-5.65);
   }
@@ -207,7 +174,7 @@ function overviewRoute(fromRoom){
   if(privateRooms.has(fromRoom.id)){
     const x=doorX[fromRoom.id];add(x,h,-7.70);add(x,h,-6.05);add(-5.3,h,-1.0);
   }else if(fromRoom.id!=='terrace')add(-5.3,h,-1.0);
-  add(-5.3,h,1.10);add(-5.3,50.6,2.0);points.push(overviewPose().position);return points;
+  add(-5.3,h,1.10);add(-5.3,h,5.0);add(-5.3,50.6,5.0);points.push(overviewPose().position);return points;
 }
 function beginTween(next,room,fromMode,fromRoom){
   const destination=next==='overview'?overviewPose():{position:new THREE.Vector3(...room.pos),target:new THREE.Vector3(...room.target)};
@@ -217,9 +184,9 @@ function beginTween(next,room,fromMode,fromRoom){
     mode:next,room,startedAt:performance.now(),duration:next==='overview'?Math.min(3.8,2.1+distance*.016):Math.min(3.5,1.35+distance*.018),
     curve:new THREE.CatmullRomCurve3(points,false,'centripetal',.22),
     startQuaternion:camera.quaternion.clone(),endQuaternion:quaternionLookingAt(destination.position,destination.target),
-    startFov:camera.fov,endFov:next==='overview'?48:66,cutaway:fromMode==='overview'?1:0,
+    startFov:camera.fov,endFov:next==='overview'?48:(room.fov??54),
   };
-  orbit.enabled=false;applyCutaway(cameraTween.cutaway);
+  orbit.enabled=false;
 }
 function setMode(next,instant=true){
   if(next==='panorama'){setRoom(currentRoom,instant);return;}
@@ -237,7 +204,7 @@ function setRoom(room,instant=true){
   currentRoom=room;mode='panorama';document.body.classList.remove('overview');orbit.enabled=false;
   environment.group.getObjectByName('Residential_tower_below').visible=true;syncModeButtons();updatePlace();
   if(instant||reduced){
-    cameraTween=null;finish.uniforms.uFade.value=0;applyRoomPose(room);applyCutaway(0);
+    cameraTween=null;finish.uniforms.uFade.value=0;applyRoomPose(room);
   }else beginTween('panorama',room,fromMode,fromRoom);
   requestDraw();
 }
@@ -261,9 +228,13 @@ function buildUI(){
 }
 function togglePlan(force){const panel=document.getElementById('plan-panel');const show=force??panel.hidden;panel.hidden=!show;document.getElementById('plan-toggle').setAttribute('aria-expanded',String(show));}
 function setLight(){
-  golden=golden?0:1;environment.setGolden(golden);sun.color.set(golden?0xffb067:0xffe7c2);sun.intensity=golden?2.6:3.4;
-  hemi.intensity=golden?.38:.48;ambient.intensity=golden?.075:.055;renderer.toneMappingExposure=golden?.78:.82;
-  scene.fog.color.set(golden?0xd1a488:0xa9cdd2);document.getElementById('light-toggle').textContent=golden?'夕照':'日光';
+  golden=golden?0:1;
+
+  
+  daylight.update(golden);
+  
+  renderer.shadowMap.needsUpdate=true;
+  document.getElementById('light-toggle').textContent=golden?'夕照':'日光';
   document.getElementById('light-toggle').setAttribute('aria-label',golden?'切换至明亮日光':'切换至金色夕阳');requestDraw();toast(golden?'金色夕照 · 海面与室内光线已切换':'明亮日光 · 海面与室内光线已切换');
 }
 function captureView(){
@@ -295,121 +266,71 @@ addEventListener('keydown',e=>{
 });
 document.addEventListener('fullscreenchange',()=>{const b=document.querySelector('[data-action="fullscreen"]');b.textContent=document.fullscreenElement?'退出全屏':'全屏';b.setAttribute('aria-label',document.fullscreenElement?'退出全屏':'进入全屏');});
 
-const governor=createQualityGovernor({initial:CAPTURE?1:initialTier(),locked:CAPTURE,onChange:q=>applyQuality(q)});
+const governor=createQualityGovernor({initial:2,locked:true,onChange:q=>applyQuality(q)});
 function sizeAO(){
-  const ratio=renderer.getPixelRatio(),scale=governor?.settings.name==='High'?.65:.5;
+  const ratio=renderer.getPixelRatio(),scale=governor?.settings.name==='High'?1:.75;
   gtao.setSize(Math.max(1,Math.floor(innerWidth*ratio*scale)),Math.max(1,Math.floor(innerHeight*ratio*scale)));
 }
 function applyQuality(q){
-  const ratio=CAPTURE?1:Math.min(devicePixelRatio,q.pixelRatio,1.5);renderer.setPixelRatio(ratio);composer.setPixelRatio(ratio);
+  const ratio=CAPTURE?1:Math.min(devicePixelRatio,q.pixelRatio,2);renderer.setPixelRatio(ratio);composer.setPixelRatio(ratio);
   renderer.shadowMap.enabled=q.shadows;bloom.enabled=q.bloom;gtao.enabled=q.name!=='Eco';
   renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);sizeAO();
   fxaa.material.uniforms.resolution.value.set(1/(innerWidth*ratio),1/(innerHeight*ratio));requestDraw();
 }
 applyQuality(governor.settings);
 
-function patchSurface(m){
-  const kind=m.name.startsWith('Oak')||m.name==='Walnut'?'wood':(['Limestone','Travertine'].includes(m.name)?'stone':(['Rug','RugLine','Linen','LinenLight','Boucle','VelvetTeal'].includes(m.name)?'fabric':(m.name==='LeatherCognac'?'leather':'')));
-  if(!kind)return;
-  const surface={wood:[.52,.28],stone:[.46,.32],fabric:[.94,.10],leather:[.62,.20]}[kind];
-  m.roughness=surface[0];m.envMapIntensity=surface[1];m.metalness=0;
-  m.onBeforeCompile=shader=>{
-    shader.vertexShader='varying vec3 vAzurWorld;\n'+shader.vertexShader;
-    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
-      vec4 azurP=vec4(transformed,1.0);
-      #ifdef USE_INSTANCING
-      azurP=instanceMatrix*azurP;
-      #endif
-      vAzurWorld=(modelMatrix*azurP).xyz;`);
-    shader.fragmentShader=`varying vec3 vAzurWorld;
-      float azurHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-      float azurNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(azurHash(i),azurHash(i+vec2(1,0)),f.x),mix(azurHash(i+vec2(0,1)),azurHash(i+vec2(1,1)),f.x),f.y);}
-      float azurFbm(vec2 p){float v=0.,a=.5;for(int i=0;i<3;i++){v+=a*azurNoise(p);p=p*2.04+13.1;a*=.5;}return v;}
-      vec3 azurPerturb(vec3 surfPos,vec3 surfNorm,float height){
-        vec3 sx=dFdx(surfPos),sy=dFdy(surfPos);
-        vec3 r1=cross(sy,surfNorm),r2=cross(surfNorm,sx);
-        float det=dot(sx,r1);
-        vec3 grad=sign(det)*(dFdx(height)*r1+dFdy(height)*r2);
-        return normalize(max(abs(det),1e-6)*surfNorm-grad);
-      }\n`+shader.fragmentShader;
-    const detail=kind==='wood'?`
-      vec2 p=vAzurWorld.xz;
-      float macro=sin(p.x*8.5+azurFbm(p*.32)*5.0+p.y*.32);
-      float grain=sin(p.x*43.0+azurFbm(p*.75)*7.0+p.y*1.7);
-      float pore=azurNoise(p*38.0);
-      diffuseColor.rgb*=.90+.060*macro+.035*grain+.025*pore;
-      float azurHeight=(grain*.5+pore-.5)*.0018;`:
-      kind==='stone'?`
-      vec2 p=vAzurWorld.xz;
-      float cloud=azurFbm(p*.18);
-      float warp=azurFbm(p*.31)*3.6;
-      float vein=pow(1.-abs(sin(p.x*.51+p.y*.37+warp)),22.0);
-      float fossil=azurNoise(p*7.5);
-      float crystal=azurNoise(p*48.0);
-      diffuseColor.rgb*=.88+.13*cloud-.075*vein+.028*fossil+.014*crystal;
-      float azurHeight=(crystal-.5)*.0012-vein*.001;`:
-      kind==='fabric'?`
-      vec2 p=vec2(vAzurWorld.x+vAzurWorld.z*.37,vAzurWorld.y+vAzurWorld.z*.61);
-      float warp=sin(p.x*155.0+azurNoise(p*4.0)*.8);
-      float weft=sin(p.y*149.0+azurNoise(p*4.7)*.8);
-      float slub=azurFbm(p*2.4);
-      float weaveFade=1.-smoothstep(.45,1.35,max(fwidth(p.x*155.0),fwidth(p.y*149.0)));
-      diffuseColor.rgb*=.93+.032*warp*weft*weaveFade+.055*slub;
-      float azurHeight=(warp*weft*weaveFade*.5+(slub-.5))*.0022;`:`
-      vec2 p=vec2(vAzurWorld.x+vAzurWorld.z*.30,vAzurWorld.y+vAzurWorld.z);
-      float grain=azurNoise(p*92.0)+azurNoise(p*37.0)*.5;
-      float nap=azurFbm(p*1.8);
-      diffuseColor.rgb*=.91+.045*grain+.045*nap;
-      float azurHeight=(grain-.75)*.0025;`;
-    const roughness=kind==='wood'?`roughnessFactor=clamp(roughnessFactor+(pore-.5)*.16+grain*.025,.32,.78);`:kind==='stone'?`roughnessFactor=clamp(roughnessFactor+(cloud-.5)*.16+vein*.10,.26,.72);`:kind==='fabric'?`roughnessFactor=clamp(roughnessFactor+slub*.04,.82,1.0);`:`roughnessFactor=clamp(roughnessFactor+(grain-.75)*.11,.42,.82);`;
-    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>\n${detail}`);
-    shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>\n${roughness}`);
-    shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>\nnormal=azurPerturb(-vViewPosition,normal,azurHeight);`);
-  };
-  m.customProgramCacheKey=()=>`azur-cinematic-surface-${kind}`;
-}
 function updateCameraTween(){
   const tween=cameraTween;if(!tween)return;
   const elapsed=(performance.now()-tween.startedAt)/1000,r=Math.min(1,elapsed/tween.duration),e=r*r*r*(r*(r*6-15)+10);
   camera.position.copy(tween.curve.getPoint(e));
   camera.quaternion.slerpQuaternions(tween.startQuaternion,tween.endQuaternion,e);
   camera.fov=THREE.MathUtils.lerp(tween.startFov,tween.endFov,e);camera.updateProjectionMatrix();
-  finish.uniforms.uFade.value=0;updateTransitionCutaway();dirty=true;
+  finish.uniforms.uFade.value=0;dirty=true;
   if(r>=1)completeTween();
 }
 function renderSample(t){environment.update(t);finish.uniforms.uTime.value=t;if(mode==='overview'&&!cameraTween)orbit.update();renderer.info.reset();composer.render();dirty=false;}
-function frame(){const dt=Math.min(clock.getDelta(),.05);updateCameraTween(dt);if(!paused){simT+=dt;dirty=true;}if(dirty){renderSample(simT);governor.sample(dt*1000);}}
+function frame(){const dt=Math.min(clock.getDelta(),.05);updateCameraTween(dt);if(!paused){simT+=dt;dirty=true;}if(dirty){renderSample(simT);if(!paused||cameraTween||dragging)governor.sample(dt*1000);}}
 
 async function init(){
   try{
     setProgress(8,'正在读取整层模型');
     const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    const surfacesReady=loadInteriorSurfaces(renderer);
     const gltf=await loader.loadAsync('./models/azur-300-v002.glb',event=>{
       const p=event.total?event.loaded/event.total:Math.min(.85,event.loaded/1100000);setProgress(10+p*58,'正在布置家具与落地窗');
     });
     model=gltf.scene;model.name='AZUR_300_residence';model.position.y=45;scene.add(model);
     model.updateMatrixWorld(true);
+    refineUpholstery(model);
+    refineBistro(model);
+    refineBedroomsAndPlants(model);
+    await hangRivieraPrint(model);
+    const patchSurface=await surfacesReady;
     const batchInfo=staticBatch(model,{animatedNodes:[],cellSize:7});
     model.traverse(o=>{
       if(!o.isMesh)return;
       const materials=Array.isArray(o.material)?o.material:[o.material];
       const transparent=materials.some(m=>m.transparent||m.transmission>0);
+      if(transparent)aoExcluded.push(o);
       o.castShadow=!transparent;o.receiveShadow=!transparent;
       o.frustumCulled=true;
       for(const m of materials){
         if(!m)continue;m.envMapIntensity=m.metalness>.5?.58:.25;patchSurface(m);
         if(m.transparent){m.depthWrite=false;m.side=THREE.FrontSide;}
-        if(m.name==='Glass'){m.opacity=.055;m.color.set(0xa9d7df);m.roughness=.035;m.metalness=0;}
-        if(m.name==='GlassBalustrade'){m.opacity=.085;m.color.set(0xa9d7df);m.roughness=.04;m.metalness=0;}
+        if(m.name==='Glass'){m.opacity=.032;m.color.set(0xe1e8e6);m.roughness=.035;m.metalness=0;}
+        if(m.name==='GlassBalustrade'){m.opacity=.062;m.color.set(0xd3e1dd);m.roughness=.04;m.metalness=0;}
         if(m.name==='Screen'||m.name==='ScreenViolet')m.emissiveIntensity=.85;
-        if(m.name==='CoveLight')m.emissiveIntensity=1.65;
+        if(m.name==='CoveLight')m.emissiveIntensity=.80;
       }
-      if(materials.some(m=>m.name==='Ceiling'))ceilingMeshes.push(o);
+
     });
-    prepareCutaway();
+
+    await daylight.ready;
+    daylight.capture();
     setProgress(76,'正在校准日光与海岸反射');
     const requested=params.get('room');
     const initial=rooms.find(r=>r.id===requested)||rooms[0];currentRoom=initial;
+    if(params.has('golden'))setLight();
     if(params.get('mode')==='overview')setMode('overview');else setRoom(initial);
     await renderer.compileAsync(scene,camera);
     setProgress(94,'正在呈现第一帧');
@@ -454,8 +375,8 @@ const promoKeys=[
   {t:25.0,p:[-5.3,46.64,-6.05],q:[-5.3,46.3,-2.0],f:62},
   {t:27.0,p:[-5.3,46.64,1.10],q:[-7.0,46.2,2.4],f:60},
   {t:28.5,p:[-5.3,47.10,-.65],q:[-7.0,46.2,2.4],f:60},
-  {t:30.0,p:[-9.3,47.65,-.35],q:[1.0,20.0,34],f:58},
-  {t:32.0,p:[-10.0,47.75,-.45],q:[2.0,20.0,36],f:56},
+  {t:30.0,p:[-9.6,46.62,1.28],q:[-.5,46.05,25],f:55},
+  {t:32.0,p:[-10.25,46.62,1.40],q:[-.5,46.05,25],f:56},
 ];
 function promoSample(t,key){
   const last=promoKeys.length-1;
@@ -478,7 +399,7 @@ window.promo={
   duration:32,
   renderAt(value,draw=true){
     const t=THREE.MathUtils.clamp(Number(value)||0,0,32);paused=true;cameraTween=null;orbit.enabled=false;mode='panorama';
-    applyCutaway(0);environment.group.getObjectByName('Residential_tower_below').visible=true;
+    environment.group.getObjectByName('Residential_tower_below').visible=true;
     camera.position.copy(promoSample(t,'p'));camera.lookAt(promoSample(t,'q'));camera.fov=promoSample(t,'f');camera.updateProjectionMatrix();syncAngles();
     if(draw)renderSample(t);else{environment.update(t);camera.updateMatrixWorld(true);}
     return{t,position:camera.position.toArray()};

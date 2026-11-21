@@ -6,7 +6,7 @@ import bpy, math, json, random
 from pathlib import Path
 from mathutils import Vector
 
-ROOT = Path('/mnt/agents/output/app')
+ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / 'public' / 'models'
 PUBLIC.mkdir(parents=True, exist_ok=True)
 BLEND = ROOT / 'azur-300-v002.blend'

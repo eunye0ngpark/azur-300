@@ -5,7 +5,7 @@
 export const TIERS = [
   { name: "Eco",      pixelRatio: 0.85, msaa: 0, bloom: false, shadows: false, planetOctaves: 0 },
   { name: "Balanced", pixelRatio: 1.15, msaa: 2, bloom: true,  shadows: true,  planetOctaves: 1 },
-  { name: "High",     pixelRatio: 1.75, msaa: 4, bloom: true,  shadows: true,  planetOctaves: 1 },
+  { name: "High",     pixelRatio: 2, msaa: 4, bloom: true,  shadows: true,  planetOctaves: 1 },
 ];
 
 const WINDOW = 90;           // frames per evaluation window
