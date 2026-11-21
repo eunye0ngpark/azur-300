@@ -4,6 +4,8 @@
 
 原图为 2048 × 1024 像素，SHA-256 为 `55c199a301943e3c0f8222e7be70b6356408f747ac3442206c7e6d2fe5aa02a5`。
 
+为缩短网页加载时间，线上运行文件使用同一来源的 1024 × 512 HDR，文件名保持不变以兼容现有代码。[1K HDR 运行素材](https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/pizzo_pernice_puresky_1k.hdr)。
+
 ## 太阳与阴影对齐
 
 用 Three.js 的 `HDRLoader` 以 Float32 读取线性 RGB，按 Rec.709 亮度计算上半球太阳盘中亮度大于峰值 25% 的 13 个像素的加权中心。以左上角为原点，结果是 `(1230.35, 209.76)`。可复现的纹理坐标为 `u = 0.600758, v = 0.795152`，v 从图像底部起算。
