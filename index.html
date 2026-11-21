@@ -6,7 +6,6 @@
 <meta name="theme-color" content="#b9d8df">
 <title>AZUR 300 · 尼斯海景大平层</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231c3d42'/%3E%3Cpath d='M12 39c10-8 18 8 28 0s14 0 14 0v11H12z' fill='%234c8b9b'/%3E%3Cpath d='M17 35L30 15l15 20h-8l-7-10-6 10z' fill='%23f4f1e8'/%3E%3C/svg%3E">
-<link rel="preload" href="./models/azur-300-v002.glb" as="fetch" crossorigin>
 <style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#b9d8df}canvas{display:block}
 </style>
@@ -19,7 +18,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#b9d8df}can
     <div class="loading-copy"><span>AZUR / 300</span><p>正在打开蔚蓝海岸</p><div class="loading-track"><i id="loading-bar"></i></div><small id="loading-value">准备空间与海面</small></div>
   </div>
   <header class="topbar hud">
-    <button class="brand" data-action="overview" aria-label="返回整层鸟瞰"><strong>AZUR</strong><span>300 M² · NICE · 17 / 20F</span></button>
+    <button class="brand" data-action="overview" aria-label="返回楼体外观"><strong>AZUR</strong><span>300 M² · NICE · 17 / 20F</span></button>
     <div class="top-actions">
       <button id="light-toggle" data-action="light" aria-label="切换至金色夕阳">日光</button>
       <button data-action="capture" aria-label="保存当前视角为图片">保存视角</button>
@@ -33,7 +32,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#b9d8df}can
   </section>
   <div class="view-switch hud" role="group" aria-label="视图模式">
     <button class="active" data-mode="panorama" aria-pressed="true">室内全景</button>
-    <button data-mode="overview" aria-pressed="false">整层鸟瞰</button>
+    <button data-mode="overview" aria-pressed="false">楼体外观</button>
     <button id="plan-toggle" data-action="plan" aria-expanded="false">户型图</button>
   </div>
   <aside id="plan-panel" class="plan-panel hud" aria-label="可点击户型图" hidden>
