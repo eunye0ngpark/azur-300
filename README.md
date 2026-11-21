@@ -1,58 +1,45 @@
-# 尼斯 17 层海景大平层 · 最终源码
+# 尼斯 17 层海景大平层 · 精修版
 
-这是最终验收版 3D 海景大平层项目的完整前端与模型源码。场景包含 300㎡ 室内、82.5㎡ 露台、大客厅、两间卧室、酒廊餐厅、厨房、台球室、电竞房、金色沙滩、海滨道路与 20 层住宅塔楼环境。
+双击完整包里的 **尼斯海景房_离线漫游.html**，即可在支持 WebGL 2 的浏览器里看房。拖动画面可以环顾，滚轮可以调整视角。底部按钮切换房间或露台，右上角可切换日光和夕照。
 
-## 包含内容
+**尼斯海景房_精修.blend** 是可继续编辑的 Blender 5.2.1 工程。模型采用米制，设有客厅、露台、主卧、餐厅四个相机。灯光、天空、材质贴图已存入文件。
 
-- `src/model.py`：Blender 模型生成源码
-- `azur-300-v002.blend`：最终 Blender 工作文件
-- `public/models/azur-300-v002.glb`：最终网页运行时模型
-- `src/scene.js`：Three.js 场景、材质、光影、镜头与交互
-- `src/environment.js`：海面、沙滩、道路、塔楼与环境
-- `scripts/`：GLB 优化、内容检查、逐帧渲染脚本
-- `index.html`：网页入口
-- `package.json` / `vite.config.js`：前端构建配置
+## 本次修正
 
-不包含调试日志、审计截图、渲染帧缓存、`node_modules` 和 `dist`。
+楼体外观保留第 17 层天花板和上方第 18–20 层，不再采用掀顶展示。漫游默认固定高画质，支持最高 2 倍屏幕像素密度、4 倍多重采样抗锯齿及更清晰的斜视材质。高画质会增加显卡负担。
 
-## 本地运行
+## 设计依据
 
-```bash
+沿用原案的 25 × 12 米室内轮廓、82.5 平方米露台和家具分区。客厅镜头高于地板 1.56 米，露台镜头高 1.60 米。软包、床品、窗帘、盆栽和挂画都有三维几何。石材、木皮、织物使用有实物尺寸记录的表面样本。
+
+按本次要求，海侧为贯通左右的开放海面。直线岸边设卵石滩和滨海步道，建筑位于陆侧。外景属于设计推演。原资料没有给出具体门牌、实测层高或原址全景。
+
+## 网页开发
+
+安装 Node.js 和 npm 后，在工程目录运行以下命令。
+
+```sh
 npm ci
 npm run dev
 ```
 
-生产构建：
+发布用网页及单文件离线版可按以下方式生成。
 
-```bash
+```sh
 npm run build
-npm run preview
+node scripts/offline.mjs
 ```
 
-## 重新生成模型
+构建后的文件在 dist 下。Three.js 从 public/models 读取基础模型，再应用 src 下的精修几何、材质、天空与海岸。
 
-需要 Blender 5.2.1 或兼容版本。使用 Blender Python 运行：
+## 更新 Blender 模型
 
-```bash
-blender --background --python src/model.py
+1. 启动网页开发服务，在浏览器访问同一站点的 /scripts/native-export.html，点击按钮导出 azur-additions.glb。
+2. 将导出的文件放到工程目录。在装有 Blender 5.2.1 的电脑上运行以下命令。首次命令从随包的原始 Blender 工程装配精修版；第二条可从精修版重新出图。
+
+```sh
+blender -b azur-300-v002.blend --python-exit-code 1 -P scripts/build-native.py -- azur-additions.glb 尼斯海景房_精修.blend
+blender -b 尼斯海景房_精修.blend --python-exit-code 1 -P scripts/render-native.py -- 效果图 1800 96 01 02 03 04
 ```
 
-模型脚本会生成 Blender 文件和未压缩 GLB。随后可重新优化网页运行时模型：
-
-```bash
-node scripts/optimize-glb.mjs public/models/azur-300-raw-v002.glb public/models/azur-300-v002.glb
-```
-
-当前仓库已经包含优化后的 `azur-300-v002.glb`，正常开发和部署不需要重新运行 Blender。
-
-## 视频渲染
-
-先构建并启动本地预览，再用确定性镜头接口逐帧渲染：
-
-```bash
-npm run build
-npm run preview -- --port 4174
-python3 scripts/render_promo.py --fps 60 --start 0 --end 1919 --width 1280 --height 720 --format png
-```
-
-渲染输出默认写入 `renders/frames30`；可通过 `--out` 指定目录。
+原始建模脚本为 src/model.py，源文件 azur-300-v002.blend 中保有原项目的落地灯。材质与参考资料见 CREDITS.md。
